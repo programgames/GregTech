@@ -102,10 +102,18 @@ public abstract class Widget {
         onPositionUpdate();
     }
 
+    public void applyScissor(final int parentX, final int parentY, final int parentWidth, final int parentHeight) {
+    }
+
     protected void onPositionUpdate() {
     }
 
     protected void onSizeUpdate() {
+    }
+
+    public boolean isMouseOverElement(int mouseX, int mouseY, boolean correctPositionOnMouseWheelMoveEvent) {
+        mouseX = correctPositionOnMouseWheelMoveEvent ? mouseX + getPosition().x : mouseX;
+        return isMouseOverElement(mouseX, mouseY);
     }
 
     public boolean isMouseOverElement(int mouseX, int mouseY) {
@@ -115,7 +123,7 @@ public abstract class Widget {
     }
 
     public static boolean isMouseOver(int x, int y, int width, int height, int mouseX, int mouseY) {
-        return mouseX >= x && mouseY >= y && x + width >= mouseX && y + height >= mouseY;
+        return mouseX >= x && mouseY >= y && x + width > mouseX && y + height > mouseY;
     }
 
     /**
@@ -152,6 +160,7 @@ public abstract class Widget {
 
     /**
      * Called when mouse wheel is moved in GUI
+     * For some -redacted- reason mouseX position is relative against GUI not game window as in other mouse events
      */
     @SideOnly(Side.CLIENT)
     public boolean mouseWheelMove(int mouseX, int mouseY, int wheelDelta) {
@@ -227,8 +236,8 @@ public abstract class Widget {
     protected void drawHoveringText(ItemStack itemStack, List<String> tooltip, int maxTextWidth, int mouseX, int mouseY) {
         Minecraft mc = Minecraft.getMinecraft();
         GuiUtils.drawHoveringText(itemStack, tooltip, mouseX, mouseY,
-             sizes.getScreenWidth(),
-             sizes.getScreenHeight(), maxTextWidth, mc.fontRenderer);
+            sizes.getScreenWidth(),
+            sizes.getScreenHeight(), maxTextWidth, mc.fontRenderer);
     }
 
     @SideOnly(Side.CLIENT)

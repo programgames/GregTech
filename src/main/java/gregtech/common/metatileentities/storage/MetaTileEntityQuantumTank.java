@@ -28,10 +28,9 @@ import net.minecraft.util.NonNullList;
 import net.minecraft.util.ResourceLocation;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.world.World;
-import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.fluids.FluidRegistry;
+import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.FluidTank;
-import net.minecraftforge.fluids.capability.CapabilityFluidHandler;
-import net.minecraftforge.fluids.capability.IFluidHandlerItem;
 import net.minecraftforge.items.ItemStackHandler;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -82,19 +81,11 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
     @Override
     public void update() {
         super.update();
-        if (!getWorld().isRemote && getTimer() % 5 == 0) {
-            ItemStack itemStack = containerInventory.getStackInSlot(0);
-            Capability<IFluidHandlerItem> capability = CapabilityFluidHandler.FLUID_HANDLER_ITEM_CAPABILITY;
-            if (!itemStack.isEmpty() && itemStack.hasCapability(capability, null)) {
-                //if we can't drain anything, try filling container. Otherwise, drain it into the quantum chest tank
-                if (itemStack.getCapability(capability, null).drain(Integer.MAX_VALUE, false) == null) {
-                    fillContainerFromInternalTank(containerInventory, containerInventory, 0, 1);
-                    pushFluidsIntoNearbyHandlers(getFrontFacing());
-                } else {
-                    fillInternalTankFromFluidContainer(containerInventory, containerInventory, 0, 1);
-                    pullFluidsFromNearbyHandlers(getFrontFacing());
-                }
-            }
+
+        if (!getWorld().isRemote) {
+            fillContainerFromInternalTank(containerInventory, containerInventory, 0, 1);
+            fillInternalTankFromFluidContainer(containerInventory, containerInventory, 0, 1);
+
         }
     }
 
@@ -111,6 +102,18 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
         super.readFromNBT(data);
         this.containerInventory.deserializeNBT(data.getCompoundTag("ContainerInventory"));
         this.fluidTank.readFromNBT(data.getCompoundTag("FluidInventory"));
+    }
+
+    @Override
+    public void initFromItemStackData(NBTTagCompound itemStack) {
+        super.initFromItemStackData(itemStack);
+        fluidTank.readFromNBT(itemStack);
+    }
+
+    @Override
+    public void writeItemStackData(NBTTagCompound itemStack) {
+        super.writeItemStackData(itemStack);
+        fluidTank.writeToNBT(itemStack);
     }
 
     @Override
@@ -163,6 +166,12 @@ public class MetaTileEntityQuantumTank extends MetaTileEntity implements ITiered
     public void addInformation(ItemStack stack, @Nullable World player, List<String> tooltip, boolean advanced) {
         super.addInformation(stack, player, tooltip, advanced);
         tooltip.add(I18n.format("gregtech.machine.quantum_tank.capacity", maxFluidCapacity));
+        NBTTagCompound compound = stack.getTagCompound();
+        if (compound != null && compound.hasKey("FluidName")) {
+            FluidStack fluidStack = new FluidStack(FluidRegistry.getFluid(compound.getString("FluidName")), 1000);
+            tooltip.add(I18n.format("gregtech.machine.quantum_tank.tooltip.name", fluidStack.getLocalizedName()));
+            tooltip.add(I18n.format("gregtech.machine.quantum_tank.tooltip.count", compound.getInteger("Amount")));
+        }
     }
 
     @Override

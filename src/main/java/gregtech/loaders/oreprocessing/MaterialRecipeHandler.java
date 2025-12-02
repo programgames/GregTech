@@ -113,7 +113,7 @@ public class MaterialRecipeHandler {
                             .blastFurnaceTemp(metalMaterial.blastFurnaceTemperature)
                             .duration(Math.max(1, duration / 9)).EUt(120);
                         if (circuitRequiringMaterials.contains(material)) {
-                            nuggetSmeltingBuilder.inputs(IntCircuitIngredient.getIntegratedCircuit(0));
+                            nuggetSmeltingBuilder.notConsumable(IntCircuitIngredient.getIntegratedCircuit(0));
                         }
                         nuggetSmeltingBuilder.buildAndRegister();
                     }
@@ -145,7 +145,7 @@ public class MaterialRecipeHandler {
         ItemStack dustStack = OreDictUnifier.get(OrePrefix.dust, material);
 
         ModHandler.addShapedRecipe(String.format("small_dust_disassembling_%s", material.toString()),
-            GTUtility.copyAmount(4, smallDustStack), "  ", " X", 'X', new UnificationEntry(OrePrefix.dust, material));
+            GTUtility.copyAmount(4, smallDustStack), " X", "  ", 'X', new UnificationEntry(OrePrefix.dust, material));
         ModHandler.addShapedRecipe(String.format("small_dust_assembling_%s", material.toString()),
             dustStack, "XX", "XX", 'X', new UnificationEntry(orePrefix, material));
 
@@ -270,13 +270,6 @@ public class MaterialRecipeHandler {
                     .circuitMeta(5)
                     .EUt(96).duration((int) (material.getAverageMass() * 9))
                     .buildAndRegister();
-
-                RecipeMaps.BENDER_RECIPES.recipeBuilder()
-                    .input(OrePrefix.plate, material, 9)
-                    .outputs(denseStack)
-                    .circuitMeta(5)
-                    .EUt(96).duration((int) (material.getAverageMass() * 2))
-                    .buildAndRegister();
             }
         }
 
@@ -396,13 +389,18 @@ public class MaterialRecipeHandler {
         for (int index = 0; index < materialAmount / M; index++) {
             result.add(blockEntry);
         }
-        //do not allow hand crafting or uncrafting of blacklisted blocks
-        if (!material.hasFlag(EXCLUDE_BLOCK_CRAFTING_RECIPES)) {
-            ModHandler.addShapelessRecipe(String.format("block_compress_%s", material.toString()), blockStack, result.toArray());
 
-            ModHandler.addShapelessRecipe(String.format("block_decompress_%s", material.toString()),
-                GTUtility.copyAmount((int) (materialAmount / M), OreDictUnifier.get(blockEntry)),
-                new UnificationEntry(blockPrefix, material));
+        //do not allow hand crafting or uncrafting, extruding or alloy smelting of blacklisted blocks
+        if (!material.hasFlag(EXCLUDE_BLOCK_CRAFTING_RECIPES)) {
+
+            //do not allow hand crafting or uncrafting of blacklisted blocks
+            if (!material.hasFlag(EXCLUDE_BLOCK_CRAFTING_BY_HAND_RECIPES)) {
+                ModHandler.addShapelessRecipe(String.format("block_compress_%s", material.toString()), blockStack, result.toArray());
+
+                ModHandler.addShapelessRecipe(String.format("block_decompress_%s", material.toString()),
+                    GTUtility.copyAmount((int) (materialAmount / M), OreDictUnifier.get(blockEntry)),
+                    new UnificationEntry(blockPrefix, material));
+            }
 
             if (material instanceof IngotMaterial) {
                 int voltageMultiplier = getVoltageMultiplier(material);
@@ -427,5 +425,4 @@ public class MaterialRecipeHandler {
         return material instanceof IngotMaterial && ((IngotMaterial) material)
             .blastFurnaceTemperature >= 2800 ? 32 : 8;
     }
-
 }

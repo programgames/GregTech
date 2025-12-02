@@ -6,6 +6,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import gregtech.api.util.GTUtility;
 import net.minecraft.util.ResourceLocation;
+import net.minecraft.world.DimensionType;
 import net.minecraft.world.WorldProvider;
 import net.minecraft.world.biome.Biome;
 import net.minecraftforge.common.BiomeDictionary;
@@ -32,21 +33,21 @@ public class WorldConfigUtils {
                 allPredicates.add(WorldProvider::isSurfaceWorld);
                 continue;
             } else if (stringValue.equals("is_nether")) {
-                allPredicates.add(WorldProvider::isNether);
+                allPredicates.add(wp -> wp.isNether() || wp.getDimensionType() == DimensionType.NETHER);
                 continue;
             }
-            Function<WorldProvider, String> stringSupplier;
+            Function<WorldProvider, String> stringSupplier = null;
             if (stringValue.startsWith("dimension_id:")) {
                 String filterValue = stringValue.substring(13);
                 if (filterValue.indexOf(':') == -1) {
                     int dimensionId = Integer.parseInt(filterValue);
-                    return provider -> provider.getDimension() == dimensionId;
+                    allPredicates.add(provider -> provider.getDimension() == dimensionId);
                 } else {
                     int indexOf = filterValue.indexOf(':');
                     int indexOfExclusive = indexOf + 1;
                     int minDimensionId = indexOf == 0 ? -Integer.MAX_VALUE : Integer.parseInt(filterValue.substring(0, indexOf));
                     int maxDimensionId = indexOfExclusive == filterValue.length() ? Integer.MAX_VALUE : Integer.parseInt(filterValue.substring(indexOfExclusive));
-                    return provider -> provider.getDimension() >= minDimensionId && provider.getDimension() <= maxDimensionId;
+                    allPredicates.add(provider -> provider.getDimension() >= minDimensionId && provider.getDimension() <= maxDimensionId);
                 }
             } else if (stringValue.startsWith("name:")) {
                 stringSupplier = provider -> provider.getDimensionType().getName();
@@ -55,12 +56,16 @@ public class WorldConfigUtils {
                 stringSupplier = provider -> provider.getClass().getSimpleName();
                 stringValue = stringValue.substring(15);
             } else throw new IllegalArgumentException("Unknown world predicate: " + stringValue);
-            if (stringValue.startsWith("*")) {
-                Pattern pattern = Pattern.compile(stringValue.substring(1));
-                return provider -> pattern.matcher(stringSupplier.apply(provider)).matches();
-            } else {
-                String finalStringValue = stringValue;
-                return provider -> finalStringValue.equalsIgnoreCase(stringSupplier.apply(provider));
+            if (stringSupplier != null) {
+                if (stringValue.startsWith("*")) {
+                    Pattern pattern = Pattern.compile(stringValue.substring(1));
+                    Function<WorldProvider, String> finalStringSupplier = stringSupplier;
+                    allPredicates.add(provider -> pattern.matcher(finalStringSupplier.apply(provider)).matches());
+                } else {
+                    String finalStringValue = stringValue;
+                    Function<WorldProvider, String> finalStringSupplier1 = stringSupplier;
+                    allPredicates.add(provider -> finalStringValue.equalsIgnoreCase(finalStringSupplier1.apply(provider)));
+                }
             }
         }
 

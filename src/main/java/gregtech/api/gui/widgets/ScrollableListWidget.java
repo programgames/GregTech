@@ -62,6 +62,8 @@ public class ScrollableListWidget extends AbstractWidgetGroup {
             widget.setParentPosition(childPosition);
             currentPosY += widget.getSize().getHeight();
             totalListHeight += widget.getSize().getHeight();
+            final Size size = getSize();
+            widget.applyScissor(position.x, position.y, size.width - scrollPaneWidth, size.height);
         }
         this.totalListHeight = totalListHeight;
         this.slotHeight = widgets.isEmpty() ? 0 : totalListHeight / widgets.size();
@@ -96,7 +98,7 @@ public class ScrollableListWidget extends AbstractWidgetGroup {
         drawSolidRect(scrollX + 1, position.y + 1, paneSize - 2, size.height - 2, 0xFF888888);
 
         int maxScrollOffset = totalListHeight - getSize().height;
-        float scrollPercent = scrollOffset / (maxScrollOffset * 1.0f);
+        float scrollPercent = maxScrollOffset == 0 ? 0 : scrollOffset / (maxScrollOffset * 1.0f);
         int scrollSliderHeight = 14;
         int scrollSliderY = Math.round(position.y + (size.height - scrollSliderHeight) * scrollPercent);
         drawGradientRect(scrollX + 1, scrollSliderY, paneSize - 2, scrollSliderHeight, 0xFF555555, 0xFF454545);
@@ -105,18 +107,39 @@ public class ScrollableListWidget extends AbstractWidgetGroup {
             super.drawInBackground(finalMouseX, finalMouseY, context));
     }
 
+    @Override
+    public boolean isWidgetClickable(final Widget widget) {
+        if (!super.isWidgetClickable(widget)) {
+            return false;
+        }
+        return isWidgetOverlapsScissor(widget);
+    }
+
     private boolean isPositionInsideScissor(int mouseX, int mouseY) {
         return isMouseOverElement(mouseX, mouseY) && !isOnScrollPane(mouseX, mouseY);
     }
 
+    private boolean isWidgetOverlapsScissor(Widget widget) {
+        final Position position = widget.getPosition();
+        final Size size = widget.getSize();
+        final int x0 = position.x;
+        final int y0 = position.y;
+        final int x1 = position.x + size.width - 1;
+        final int y1 = position.y + size.height - 1;
+        return isPositionInsideScissor(x0, y0) ||
+               isPositionInsideScissor(x0, y1) ||
+               isPositionInsideScissor(x1, y0) ||
+               isPositionInsideScissor(x1, y1);
+    }
+
     private boolean isBoxInsideScissor(Rectangle rectangle) {
         return isPositionInsideScissor(rectangle.x, rectangle.y) &&
-            isPositionInsideScissor(rectangle.x + rectangle.width, rectangle.y + rectangle.height);
+            isPositionInsideScissor(rectangle.x + rectangle.width - 1, rectangle.y + rectangle.height - 1);
     }
 
     @Override
     public boolean mouseWheelMove(int mouseX, int mouseY, int wheelDelta) {
-        if (isMouseOverElement(mouseX, mouseY)) {
+        if (isMouseOverElement(mouseX, mouseY, true)) {
             int direction = -MathHelper.clamp(wheelDelta, -1, 1);
             int moveDelta = direction * (slotHeight / 2);
             addScrollOffset(moveDelta);

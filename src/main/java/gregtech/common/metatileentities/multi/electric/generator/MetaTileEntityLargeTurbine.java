@@ -13,6 +13,7 @@ import gregtech.api.multiblock.PatternMatchContext;
 import gregtech.api.recipes.RecipeMaps;
 import gregtech.api.recipes.machines.FuelRecipeMap;
 import gregtech.api.render.ICubeRenderer;
+import gregtech.api.render.OrientedOverlayRenderer;
 import gregtech.api.render.Textures;
 import gregtech.common.blocks.BlockTurbineCasing.TurbineCasingType;
 import gregtech.common.blocks.MetaBlocks;
@@ -26,29 +27,45 @@ import net.minecraft.util.text.TextFormatting;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.capability.IFluidHandler;
 
+import javax.annotation.Nonnull;
 import java.util.List;
 
-public class MetaTileEntityLargeTurbine extends FueledMultiblockController {
+public class MetaTileEntityLargeTurbine extends RotorHolderMultiblockController {
 
-    public static final MultiblockAbility<MetaTileEntityRotorHolder> ABILITY_ROTOR_HOLDER = new MultiblockAbility<>();
     private static final int MIN_DURABILITY_TO_WARN = 10;
 
     public enum TurbineType {
 
-        STEAM(RecipeMaps.STEAM_TURBINE_FUELS, MetaBlocks.TURBINE_CASING.getState(TurbineCasingType.STEEL_TURBINE_CASING), Textures.SOLID_STEEL_CASING, true),
-        GAS(RecipeMaps.GAS_TURBINE_FUELS, MetaBlocks.TURBINE_CASING.getState(TurbineCasingType.STAINLESS_TURBINE_CASING), Textures.CLEAN_STAINLESS_STEEL_CASING, false),
-        PLASMA(RecipeMaps.PLASMA_GENERATOR_FUELS, MetaBlocks.TURBINE_CASING.getState(TurbineCasingType.TUNGSTENSTEEL_TURBINE_CASING), Textures.ROBUST_TUNGSTENSTEEL_CASING, true);
+        STEAM(RecipeMaps.STEAM_TURBINE_FUELS, MetaBlocks.TURBINE_CASING.getState(TurbineCasingType.STEEL_TURBINE_CASING), Textures.SOLID_STEEL_CASING, true, Textures.LARGE_STEAM_TURBINE_OVERLAY),
+        GAS(RecipeMaps.GAS_TURBINE_FUELS, MetaBlocks.TURBINE_CASING.getState(TurbineCasingType.STAINLESS_TURBINE_CASING), Textures.CLEAN_STAINLESS_STEEL_CASING, false, Textures.LARGE_GAS_TURBINE_OVERLAY),
+        PLASMA(RecipeMaps.PLASMA_GENERATOR_FUELS, MetaBlocks.TURBINE_CASING.getState(TurbineCasingType.TUNGSTENSTEEL_TURBINE_CASING), Textures.ROBUST_TUNGSTENSTEEL_CASING, true, Textures.LARGE_PLASMA_TURBINE_OVERLAY);
 
         public final FuelRecipeMap recipeMap;
         public final IBlockState casingState;
         public final ICubeRenderer casingRenderer;
         public final boolean hasOutputHatch;
+        public final OrientedOverlayRenderer frontOverlay;
 
+        /**
+         * @deprecated use {@link TurbineType#TurbineType(FuelRecipeMap, IBlockState, ICubeRenderer, boolean, OrientedOverlayRenderer)}
+         * Deprecated for use due to new constructor accepting a front overlay texture
+         * This is left in place to ensure compatibility with addon mods that add Large Turbines
+         */
+        @Deprecated
         TurbineType(FuelRecipeMap recipeMap, IBlockState casingState, ICubeRenderer casingRenderer, boolean hasOutputHatch) {
             this.recipeMap = recipeMap;
             this.casingState = casingState;
             this.casingRenderer = casingRenderer;
             this.hasOutputHatch = hasOutputHatch;
+            this.frontOverlay = Textures.MULTIBLOCK_WORKABLE_OVERLAY;
+        }
+
+        TurbineType(FuelRecipeMap recipeMap, IBlockState casingState, ICubeRenderer casingRenderer, boolean hasOutputHatch, OrientedOverlayRenderer frontOverlay) {
+            this.recipeMap = recipeMap;
+            this.casingState = casingState;
+            this.casingRenderer = casingRenderer;
+            this.hasOutputHatch = hasOutputHatch;
+            this.frontOverlay = frontOverlay;
         }
     }
 
@@ -72,13 +89,6 @@ public class MetaTileEntityLargeTurbine extends FueledMultiblockController {
     }
 
     @Override
-    protected void updateFormedValid() {
-        if (isTurbineFaceFree()) {
-            super.updateFormedValid();
-        }
-    }
-
-    @Override
     protected void formStructure(PatternMatchContext context) {
         super.formStructure(context);
         this.exportFluidHandler = new FluidTankList(true, getAbilities(MultiblockAbility.EXPORT_FLUIDS));
@@ -90,25 +100,20 @@ public class MetaTileEntityLargeTurbine extends FueledMultiblockController {
         this.exportFluidHandler = null;
     }
 
-    /**
-     * @return true if structure formed, workable is active and front face is free
-     */
-    public boolean isActive() {
-        return isTurbineFaceFree() && workableHandler.isActive() && workableHandler.isWorkingEnabled();
+    @Override
+    public int getRotorSpeedIncrement() {
+        return 1;
     }
 
-    /**
-     * @return true if turbine is formed and it's face is free and contains
-     * only air blocks in front of rotor holder
-     */
-    public boolean isTurbineFaceFree() {
-        return isStructureFormed() && getAbilities(ABILITY_ROTOR_HOLDER).get(0).isFrontFaceFree();
+    @Override
+    public int getRotorSpeedDecrement() {
+        return -3;
     }
 
     @Override
     protected void addDisplayText(List<ITextComponent> textList) {
         if (isStructureFormed()) {
-            MetaTileEntityRotorHolder rotorHolder = getAbilities(ABILITY_ROTOR_HOLDER).get(0);
+            MetaTileEntityRotorHolder rotorHolder = getRotorHolder();
             FluidStack fuelStack = ((LargeTurbineWorkableHandler) workableHandler).getFuelStack();
             int fuelAmount = fuelStack == null ? 0 : fuelStack.amount;
 
@@ -123,8 +128,13 @@ public class MetaTileEntityLargeTurbine extends FueledMultiblockController {
                     textList.add(new TextComponentTranslation("gregtech.multiblock.turbine.rotor_durability", rotorDurability));
                 } else {
                     textList.add(new TextComponentTranslation("gregtech.multiblock.turbine.low_rotor_durability",
-                        MIN_DURABILITY_TO_WARN, rotorDurability).setStyle(new Style().setColor(TextFormatting.RED)));
+                            MIN_DURABILITY_TO_WARN, rotorDurability).setStyle(new Style().setColor(TextFormatting.RED)));
                 }
+            }
+
+            if(!isRotorFaceFree()) {
+                textList.add(new TextComponentTranslation("gregtech.multiblock.turbine.obstructed")
+                        .setStyle(new Style().setColor(TextFormatting.RED)));
             }
         }
         super.addDisplayText(textList);
@@ -133,23 +143,23 @@ public class MetaTileEntityLargeTurbine extends FueledMultiblockController {
     @Override
     protected BlockPattern createStructurePattern() {
         return turbineType == null ? null :
-            FactoryBlockPattern.start()
-                .aisle("CCCC", "CHHC", "CCCC")
-                .aisle("CHHC", "R##D", "CHHC")
-                .aisle("CCCC", "CSHC", "CCCC")
-                .where('S', selfPredicate())
-                .where('#', isAirPredicate())
-                .where('C', statePredicate(getCasingState()))
-                .where('H', statePredicate(getCasingState()).or(abilityPartPredicate(getAllowedAbilities())))
-                .where('R', abilityPartPredicate(ABILITY_ROTOR_HOLDER))
-                .where('D', abilityPartPredicate(MultiblockAbility.OUTPUT_ENERGY))
-                .build();
+                FactoryBlockPattern.start()
+                        .aisle("CCCC", "CHHC", "CCCC")
+                        .aisle("CHHC", "R##D", "CHHC")
+                        .aisle("CCCC", "CSHC", "CCCC")
+                        .where('S', selfPredicate())
+                        .where('#', isAirPredicate())
+                        .where('C', statePredicate(getCasingState()))
+                        .where('H', statePredicate(getCasingState()).or(abilityPartPredicate(getAllowedAbilities())))
+                        .where('R', abilityPartPredicate(ABILITY_ROTOR_HOLDER))
+                        .where('D', abilityPartPredicate(MultiblockAbility.OUTPUT_ENERGY))
+                        .build();
     }
 
     public MultiblockAbility[] getAllowedAbilities() {
         return turbineType.hasOutputHatch ?
-            new MultiblockAbility[]{MultiblockAbility.IMPORT_FLUIDS, MultiblockAbility.EXPORT_FLUIDS} :
-            new MultiblockAbility[]{MultiblockAbility.IMPORT_FLUIDS};
+                new MultiblockAbility[]{MultiblockAbility.IMPORT_FLUIDS, MultiblockAbility.EXPORT_FLUIDS} :
+                new MultiblockAbility[]{MultiblockAbility.IMPORT_FLUIDS};
     }
 
     public IBlockState getCasingState() {
@@ -161,4 +171,17 @@ public class MetaTileEntityLargeTurbine extends FueledMultiblockController {
         return turbineType.casingRenderer;
     }
 
+    /** Deprecated method please use {@code {@see isRotorFaceFree}} instead
+     *
+     */
+    @Deprecated
+    public boolean isTurbineFaceFree() {
+        return isRotorFaceFree();
+    }
+
+    @Nonnull
+    @Override
+    protected OrientedOverlayRenderer getFrontOverlay() {
+        return turbineType.frontOverlay;
+    }
 }

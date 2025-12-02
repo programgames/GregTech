@@ -27,13 +27,13 @@ public class RecipeMapGroupOutput extends RecipeMap<SimpleRecipeBuilder> impleme
     @Override
     public Builder createUITemplate(DoubleSupplier progressSupplier, IItemHandlerModifiable importItems, IItemHandlerModifiable exportItems, FluidTankList importFluids, FluidTankList exportFluids) {
         ModularUI.Builder builder = ModularUI.defaultBuilder();
-        builder.widget(new ProgressWidget(progressSupplier, 77, 22, 20, 20, progressBarTexture, moveType));
+        builder.widget(new ProgressWidget(progressSupplier, 77, 22, 21, 20, progressBarTexture, moveType));
         addInventorySlotGroup(builder, importItems, importFluids, false);
         BooleanWrapper booleanWrapper = new BooleanWrapper();
         ServerWidgetGroup itemOutputGroup = createItemOutputWidgetGroup(exportItems, new ServerWidgetGroup(() -> !booleanWrapper.getCurrentMode()));
         ServerWidgetGroup fluidOutputGroup = createFluidOutputWidgetGroup(exportFluids, new ServerWidgetGroup(booleanWrapper::getCurrentMode));
         builder.widget(itemOutputGroup).widget(fluidOutputGroup);
-        ToggleButtonWidget buttonWidget = new ToggleButtonWidget(176 - 7 - 20, 60, 20, 20,
+        ToggleButtonWidget buttonWidget = new ToggleButtonWidget(176 - 7 - 54, 62, 18, 18,
             GuiTextures.BUTTON_SWITCH_VIEW, booleanWrapper::getCurrentMode, booleanWrapper::setCurrentMode)
             .setTooltipText("gregtech.gui.toggle_view");
         builder.widget(buttonWidget);
@@ -47,7 +47,7 @@ public class RecipeMapGroupOutput extends RecipeMap<SimpleRecipeBuilder> impleme
 
     @Override
     public int getRightButtonOffset() {
-        return 20;
+        return 18;
     }
 
     private static class BooleanWrapper {

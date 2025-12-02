@@ -38,6 +38,7 @@ public class GuiTextures {
     public static final TextureArea BUTTON_ALLOW_IMPORT_EXPORT = TextureArea.fullImage("textures/gui/widget/button_allow_import_export.png");
     public static final TextureArea BUTTON_CLEAR_GRID = TextureArea.fullImage("textures/gui/widget/button_clear_grid.png");
     public static final TextureArea LOCK = TextureArea.fullImage("textures/gui/widget/lock.png");
+
     //INDICATORS & ICONS
     public static final TextureArea INDICATOR_NO_ENERGY = TextureArea.fullImage("textures/gui/base/indicator_no_energy.png");
     public static final TextureArea TANK_ICON = TextureArea.fullImage("textures/gui/base/tank_icon.png");
@@ -119,10 +120,14 @@ public class GuiTextures {
     public static final TextureArea PROGRESS_BAR_LATHE = TextureArea.fullImage("textures/gui/progress_bar/progress_bar_lathe.png");
     public static final TextureArea PROGRESS_BAR_MACERATE = TextureArea.fullImage("textures/gui/progress_bar/progress_bar_macerate.png");
     public static final TextureArea PROGRESS_BAR_MAGNET = TextureArea.fullImage("textures/gui/progress_bar/progress_bar_magnet.png");
+    public static final TextureArea PROGRESS_BAR_MIXER = TextureArea.fullImage("textures/gui/progress_bar/progress_bar_mixer.png");
     public static final TextureArea PROGRESS_BAR_RECYCLER = TextureArea.fullImage("textures/gui/progress_bar/progress_bar_recycler.png");
     public static final TextureArea PROGRESS_BAR_SIFT = TextureArea.fullImage("textures/gui/progress_bar/progress_bar_sift.png");
     public static final TextureArea PROGRESS_BAR_SLICE = TextureArea.fullImage("textures/gui/progress_bar/progress_bar_slice.png");
     public static final TextureArea PROGRESS_BAR_WIREMILL = TextureArea.fullImage("textures/gui/progress_bar/progress_bar_wiremill.png");
 
+    //JEI
+    public static final TextureArea MULTIBLOCK_CATEGORY = TextureArea.fullImage("textures/gui/icon/coke_oven.png");
+    public static final TextureArea INFO_ICON = TextureArea.fullImage("textures/gui/widget/information.png");
 
 }

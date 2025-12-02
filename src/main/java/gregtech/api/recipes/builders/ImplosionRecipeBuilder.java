@@ -1,9 +1,11 @@
 package gregtech.api.recipes.builders;
 
 import com.google.common.collect.ImmutableMap;
+import gregtech.api.recipes.CountableIngredient;
 import gregtech.api.recipes.Recipe;
 import gregtech.api.recipes.RecipeBuilder;
 import gregtech.api.recipes.RecipeMap;
+import gregtech.api.recipes.recipeproperties.ImplosionExplosiveProperty;
 import gregtech.api.util.EnumValidationResult;
 import gregtech.api.util.GTLog;
 import gregtech.api.util.GTUtility;
@@ -16,12 +18,14 @@ import stanhebben.zenscript.annotations.ZenMethod;
 public class ImplosionRecipeBuilder extends RecipeBuilder<ImplosionRecipeBuilder> {
 
     protected int explosivesAmount;
+    protected ItemStack explosivesType;
 
     public ImplosionRecipeBuilder() {
     }
 
     public ImplosionRecipeBuilder(Recipe recipe, RecipeMap<ImplosionRecipeBuilder> recipeMap) {
         super(recipe, recipeMap);
+        this.explosivesType = recipe.getRecipePropertyStorage().getRecipePropertyValue(ImplosionExplosiveProperty.getInstance(), ItemStack.EMPTY);
     }
 
     public ImplosionRecipeBuilder(RecipeBuilder<ImplosionRecipeBuilder> recipeBuilder) {
@@ -42,6 +46,16 @@ public class ImplosionRecipeBuilder extends RecipeBuilder<ImplosionRecipeBuilder
         return false;
     }
 
+    @Override
+    public boolean applyProperty(String key, ItemStack exploType) {
+        if (key.equals("explosives")) {
+            explosivesAmount(exploType.getCount());
+            explosivesType = exploType;
+            return true;
+        }
+        return false;
+    }
+
     @ZenMethod
     public ImplosionRecipeBuilder explosivesAmount(int explosivesAmount) {
         if (!GTUtility.isBetweenInclusive(1, 64, explosivesAmount)) {
@@ -52,23 +66,39 @@ public class ImplosionRecipeBuilder extends RecipeBuilder<ImplosionRecipeBuilder
         return this;
     }
 
-    @Override
-    public void buildAndRegister() {
-        int tntAmount = Math.max(1, explosivesAmount / 2);
-        recipeMap.addRecipe(this.copy().inputs(new ItemStack(Blocks.TNT, tntAmount)).build());
+    @ZenMethod
+    public ImplosionRecipeBuilder explosivesType(ItemStack explosivesType) {
+        this.explosivesType = explosivesType;
+        return this;
     }
 
     public ValidationResult<Recipe> build() {
-        return ValidationResult.newResult(finalizeAndValidate(),
-            new Recipe(inputs, outputs, chancedOutputs, fluidInputs, fluidOutputs,
-                ImmutableMap.of(), duration, EUt, hidden));
+
+        //Adjust the explosive type and the explosive amount. This is done here because it was null otherwise, for some reason
+        int amount = Math.max(1, explosivesAmount / 2);
+        if (explosivesType == null) {
+            this.explosivesType = new ItemStack(Blocks.TNT, amount);
+        } else {
+            this.explosivesType = new ItemStack(explosivesType.getItem(), amount, explosivesType.getMetadata());
+        }
+        inputs.add(CountableIngredient.from(explosivesType));
+
+
+        Recipe recipe = new Recipe(inputs, outputs, chancedOutputs, fluidInputs, fluidOutputs,
+                duration, EUt, hidden);
+
+        if (!recipe.getRecipePropertyStorage().store(ImmutableMap.of(ImplosionExplosiveProperty.getInstance(), explosivesType))) {
+            return ValidationResult.newResult(EnumValidationResult.INVALID, recipe);
+        }
+
+        return ValidationResult.newResult(finalizeAndValidate(), recipe);
     }
 
     @Override
     public String toString() {
         return new ToStringBuilder(this)
-            .appendSuper(super.toString())
-            .append("explosivesAmount", explosivesAmount)
-            .toString();
+                .appendSuper(super.toString())
+                .append(ImplosionExplosiveProperty.getInstance().getKey(), explosivesType)
+                .toString();
     }
 }

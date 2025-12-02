@@ -14,6 +14,7 @@ import gregtech.common.metatileentities.multi.electric.generator.MetaTileEntityL
 import net.minecraft.nbt.NBTTagCompound;
 import net.minecraft.util.math.MathHelper;
 import net.minecraftforge.fluids.FluidStack;
+import net.minecraftforge.fluids.IFluidTank;
 
 import java.util.function.Supplier;
 
@@ -34,6 +35,10 @@ public class LargeTurbineWorkableHandler extends FuelRecipeLogic {
     @Override
     public void update() {
         super.update();
+        MetaTileEntityRotorHolder rotorHolder = largeTurbine.getAbilities(MetaTileEntityLargeTurbine.ABILITY_ROTOR_HOLDER).get(0);
+        if (!rotorHolder.isHasRotor()) {
+            setActive(false);
+        }
         long totalEnergyOutput = getRecipeOutputVoltage();
         if (totalEnergyOutput > 0) {
             energyContainer.get().addEnergy(totalEnergyOutput);
@@ -72,6 +77,12 @@ public class LargeTurbineWorkableHandler extends FuelRecipeLogic {
     }
 
     @Override
+    protected boolean isReadyForRecipes() {
+        MetaTileEntityRotorHolder rotorHolder = largeTurbine.getAbilities(MetaTileEntityLargeTurbine.ABILITY_ROTOR_HOLDER).get(0);
+        return rotorHolder.isHasRotor();
+    }
+
+    @Override
     protected long startRecipe(FuelRecipe currentRecipe, int fuelAmountUsed, int recipeDuration) {
         addOutputFluids(currentRecipe, fuelAmountUsed);
         return 0L; //energy is added each tick while the rotor speed is >0 RPM
@@ -107,7 +118,7 @@ public class LargeTurbineWorkableHandler extends FuelRecipeLogic {
         double relativeRotorSpeed = rotorHolder.getRelativeRotorSpeed();
         if (rotorHolder.getCurrentRotorSpeed() > 0 && rotorHolder.hasRotorInInventory()) {
             double rotorEfficiency = rotorHolder.getRotorEfficiency();
-            double totalEnergyOutput = (BASE_EU_OUTPUT + getBonusForTurbineType(largeTurbine) * rotorEfficiency) * (relativeRotorSpeed * relativeRotorSpeed);
+            double totalEnergyOutput = ((BASE_EU_OUTPUT + getBonusForTurbineType(largeTurbine)) * rotorEfficiency) * (relativeRotorSpeed * relativeRotorSpeed);
             return MathHelper.ceil(totalEnergyOutput);
         }
         return 0L;

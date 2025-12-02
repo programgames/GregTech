@@ -134,6 +134,7 @@ public class MetaTileEntityItemCollector extends TieredMetaTileEntity {
     protected void moveItemsInEffectRange() {
         List<EntityItem> itemsInRange = getWorld().getEntitiesWithinAABB(EntityItem.class, areaBoundingBox);
         for (EntityItem entityItem : itemsInRange) {
+            if(entityItem.isDead) continue;
             double distanceX = (areaCenterPos.getX() + 0.5) - entityItem.posX;
             double distanceZ = (areaCenterPos.getZ() + 0.5) - entityItem.posZ;
             double distance = MathHelper.sqrt(distanceX * distanceX + distanceZ * distanceZ);
@@ -159,7 +160,7 @@ public class MetaTileEntityItemCollector extends TieredMetaTileEntity {
                 }
             }
         }
-        if (getTimer() % 5 == 0) {
+        if (getOffsetTimer() % 5 == 0) {
             pushItemsIntoNearbyHandlers(getFrontFacing());
         }
     }
@@ -235,7 +236,7 @@ public class MetaTileEntityItemCollector extends TieredMetaTileEntity {
         }
 
         this.itemFilter.initUI(45 + rowSize * 18 + 5, builder::widget);
-        builder.bindPlayerInventory(entityPlayer.inventory, GuiTextures.SLOT, 8, 45 + rowSize * 18 + 105);
+        builder.bindPlayerInventory(entityPlayer.inventory, GuiTextures.SLOT, 7, 45 + rowSize * 18 + 105);
         return builder.build(getHolder(), entityPlayer);
     }
 }

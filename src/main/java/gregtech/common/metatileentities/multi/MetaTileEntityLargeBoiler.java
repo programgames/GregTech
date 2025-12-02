@@ -6,8 +6,12 @@ import codechicken.lib.render.pipeline.IVertexOperation;
 import codechicken.lib.vec.Matrix4;
 import gregtech.api.GTValues;
 import gregtech.api.capability.GregtechCapabilities;
+import gregtech.api.capability.IFuelInfo;
+import gregtech.api.capability.IFuelable;
+import gregtech.api.capability.impl.FluidFuelInfo;
 import gregtech.api.capability.impl.FluidTankList;
 import gregtech.api.capability.impl.FuelRecipeLogic;
+import gregtech.api.capability.impl.ItemFuelInfo;
 import gregtech.api.capability.impl.ItemHandlerList;
 import gregtech.api.capability.tool.ISoftHammerItem;
 import gregtech.api.gui.Widget.ClickData;
@@ -23,6 +27,7 @@ import gregtech.api.recipes.ModHandler;
 import gregtech.api.recipes.RecipeMaps;
 import gregtech.api.recipes.recipes.FuelRecipe;
 import gregtech.api.render.ICubeRenderer;
+import gregtech.api.render.OrientedOverlayRenderer;
 import gregtech.api.render.SimpleCubeRenderer;
 import gregtech.api.render.Textures;
 import gregtech.api.util.GTUtility;
@@ -46,17 +51,21 @@ import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.TextComponentString;
 import net.minecraft.util.text.TextComponentTranslation;
+import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.fluids.FluidStack;
 import net.minecraftforge.fluids.IFluidTank;
 
+import javax.annotation.Nonnull;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import static gregtech.api.gui.widgets.AdvancedTextWidget.withButton;
 import static gregtech.api.gui.widgets.AdvancedTextWidget.withHoverTextTranslate;
 
-public class MetaTileEntityLargeBoiler extends MultiblockWithDisplayBase {
+public class MetaTileEntityLargeBoiler extends MultiblockWithDisplayBase implements IFuelable {
 
     private static final int CONSUMPTION_MULTIPLIER = 100;
     private static final int BOILING_TEMPERATURE = 100;
@@ -67,28 +76,28 @@ public class MetaTileEntityLargeBoiler extends MultiblockWithDisplayBase {
             MetaBlocks.BOILER_FIREBOX_CASING.getState(FireboxCasingType.BRONZE_FIREBOX),
             MetaBlocks.BOILER_CASING.getState(BoilerCasingType.BRONZE_PIPE),
             Textures.BRONZE_PLATED_BRICKS,
-            Textures.BRONZE_FIREBOX, Textures.BRONZE_FIREBOX_ACTIVE),
+            Textures.BRONZE_FIREBOX, Textures.BRONZE_FIREBOX_ACTIVE, Textures.LARGE_BRONZE_BOILER),
 
         STEEL(1600, 1.6f, 30, 800,
             MetaBlocks.METAL_CASING.getState(MetalCasingType.STEEL_SOLID),
             MetaBlocks.BOILER_FIREBOX_CASING.getState(FireboxCasingType.STEEL_FIREBOX),
             MetaBlocks.BOILER_CASING.getState(BoilerCasingType.STEEL_PIPE),
             Textures.SOLID_STEEL_CASING,
-            Textures.STEEL_FIREBOX, Textures.STEEL_FIREBOX_ACTIVE),
+            Textures.STEEL_FIREBOX, Textures.STEEL_FIREBOX_ACTIVE, Textures.LARGE_STEEL_BOILER),
 
         TITANIUM(3700, 3.0f, 31, 2000,
             MetaBlocks.METAL_CASING.getState(MetalCasingType.TITANIUM_STABLE),
             MetaBlocks.BOILER_FIREBOX_CASING.getState(FireboxCasingType.TITANIUM_FIREBOX),
             MetaBlocks.BOILER_CASING.getState(BoilerCasingType.TITANIUM_PIPE),
             Textures.STABLE_TITANIUM_CASING,
-            Textures.TITANIUM_FIREBOX, Textures.TITANIUM_FIREBOX_ACTIVE),
+            Textures.TITANIUM_FIREBOX, Textures.TITANIUM_FIREBOX_ACTIVE, Textures.LARGE_TITANIUM_BOILER),
 
         TUNGSTENSTEEL(7800, 5.4f, 32, 4000,
             MetaBlocks.METAL_CASING.getState(MetalCasingType.TUNGSTENSTEEL_ROBUST),
             MetaBlocks.BOILER_FIREBOX_CASING.getState(FireboxCasingType.TUNGSTENSTEEL_FIREBOX),
             MetaBlocks.BOILER_CASING.getState(BoilerCasingType.TUNGSTENSTEEL_PIPE),
             Textures.ROBUST_TUNGSTENSTEEL_CASING,
-            Textures.TUNGSTENSTEEL_FIREBOX, Textures.TUNGSTENSTEEL_FIREBOX_ACTIVE);
+            Textures.TUNGSTENSTEEL_FIREBOX, Textures.TUNGSTENSTEEL_FIREBOX_ACTIVE, Textures.LARGE_TUNGSTENSTEEL_BOILER);
 
         public final int baseSteamOutput;
         public final float fuelConsumptionMultiplier;
@@ -100,7 +109,14 @@ public class MetaTileEntityLargeBoiler extends MultiblockWithDisplayBase {
         public final ICubeRenderer solidCasingRenderer;
         public final SimpleCubeRenderer fireboxIdleRenderer;
         public final SimpleCubeRenderer firefoxActiveRenderer;
+        public final OrientedOverlayRenderer frontOverlay;
 
+        /**
+         * @deprecated use {@link BoilerType#BoilerType(int, float, int, int, IBlockState, IBlockState, IBlockState, ICubeRenderer, SimpleCubeRenderer, SimpleCubeRenderer, OrientedOverlayRenderer)}
+         * Deprecated for use due to new constructor accepting a front overlay texture
+         * Left in place for compatibility with addon mods
+         */
+        @Deprecated
         BoilerType(int baseSteamOutput, float fuelConsumptionMultiplier, int temperatureEffBuff, int maxTemperature, IBlockState casingState, IBlockState fireboxState, IBlockState pipeState,
                    ICubeRenderer solidCasingRenderer, SimpleCubeRenderer fireboxIdleRenderer, SimpleCubeRenderer firefoxActiveRenderer) {
             this.baseSteamOutput = baseSteamOutput;
@@ -113,6 +129,22 @@ public class MetaTileEntityLargeBoiler extends MultiblockWithDisplayBase {
             this.solidCasingRenderer = solidCasingRenderer;
             this.fireboxIdleRenderer = fireboxIdleRenderer;
             this.firefoxActiveRenderer = firefoxActiveRenderer;
+            this.frontOverlay = Textures.MULTIBLOCK_WORKABLE_OVERLAY;
+        }
+
+        BoilerType(int baseSteamOutput, float fuelConsumptionMultiplier, int temperatureEffBuff, int maxTemperature, IBlockState casingState, IBlockState fireboxState, IBlockState pipeState,
+                   ICubeRenderer solidCasingRenderer, SimpleCubeRenderer fireboxIdleRenderer, SimpleCubeRenderer firefoxActiveRenderer, OrientedOverlayRenderer frontOverlay) {
+            this.baseSteamOutput = baseSteamOutput;
+            this.fuelConsumptionMultiplier = fuelConsumptionMultiplier;
+            this.temperatureEffBuff = temperatureEffBuff;
+            this.maxTemperature = maxTemperature;
+            this.casingState = casingState;
+            this.fireboxState = fireboxState;
+            this.pipeState = pipeState;
+            this.solidCasingRenderer = solidCasingRenderer;
+            this.fireboxIdleRenderer = fireboxIdleRenderer;
+            this.firefoxActiveRenderer = firefoxActiveRenderer;
+            this.frontOverlay = frontOverlay;
         }
     }
 
@@ -205,26 +237,26 @@ public class MetaTileEntityLargeBoiler extends MultiblockWithDisplayBase {
 
     private double getHeatEfficiencyMultiplier() {
         double temperature = currentTemperature / (boilerType.maxTemperature * 1.0);
-        return 1.0 + Math.round((boilerType.temperatureEffBuff * temperature) / 100.0);
+        return 1.0 + Math.round(boilerType.temperatureEffBuff * temperature) / 100.0;
     }
 
     @Override
     protected void updateFormedValid() {
         if (fuelBurnTicksLeft > 0 && currentTemperature < boilerType.maxTemperature) {
             --this.fuelBurnTicksLeft;
-            if (getTimer() % 20 == 0) {
+            if (getOffsetTimer() % 20 == 0) {
                 this.currentTemperature++;
             }
             if (fuelBurnTicksLeft == 0) {
                 this.wasActiveAndNeedsUpdate = true;
             }
-        } else if (currentTemperature > 0 && getTimer() % 20 == 0) {
+        } else if (currentTemperature > 0 && getOffsetTimer() % 20 == 0) {
             --this.currentTemperature;
         }
 
         this.lastTickSteamOutput = 0;
         if (currentTemperature >= BOILING_TEMPERATURE) {
-            boolean doWaterDrain = getTimer() % 20 == 0;
+            boolean doWaterDrain = getOffsetTimer() % 20 == 0;
             FluidStack drainedWater = fluidImportInventory.drain(ModHandler.getWater(1), doWaterDrain);
             if (drainedWater == null || drainedWater.amount == 0) {
                 drainedWater = fluidImportInventory.drain(ModHandler.getDistilledWater(1), doWaterDrain);
@@ -412,7 +444,13 @@ public class MetaTileEntityLargeBoiler extends MultiblockWithDisplayBase {
     @Override
     public void renderMetaTileEntity(CCRenderState renderState, Matrix4 translation, IVertexOperation[] pipeline) {
         super.renderMetaTileEntity(renderState, translation, pipeline);
-        Textures.MULTIBLOCK_WORKABLE_OVERLAY.render(renderState, translation, pipeline, getFrontFacing(), isActive);
+        this.getFrontOverlay().render(renderState, translation, pipeline, getFrontFacing(), isActive);
+    }
+
+    @Nonnull
+    @Override
+    protected OrientedOverlayRenderer getFrontOverlay() {
+        return boilerType.frontOverlay;
     }
 
     @Override
@@ -456,5 +494,87 @@ public class MetaTileEntityLargeBoiler extends MultiblockWithDisplayBase {
             }
         }
         return super.onRightClick(playerIn, hand, facing, hitResult);
+    }
+
+    public <T> T getCapability(Capability<T> capability, EnumFacing side) {
+        T result = super.getCapability(capability, side);
+        if (result != null)
+            return result;
+        if (capability == GregtechCapabilities.CAPABILITY_FUELABLE) {
+            return GregtechCapabilities.CAPABILITY_FUELABLE.cast(this);
+        }
+        return null;
+    }
+
+    @Override
+    public Collection<IFuelInfo> getFuels() {
+        if (!isStructureFormed())
+            return Collections.emptySet();
+        final LinkedHashMap<Object, IFuelInfo> fuels = new LinkedHashMap<Object, IFuelInfo>();
+        int fluidCapacity = 0; // fluid capacity is all non water tanks
+        for (IFluidTank fluidTank : fluidImportInventory.getFluidTanks()) {
+            FluidStack fuelStack = fluidTank.drain(Integer.MAX_VALUE, false);
+            if (!ModHandler.isWater(fuelStack))
+                fluidCapacity += fluidTank.getCapacity();
+        }
+        for (IFluidTank fluidTank : fluidImportInventory.getFluidTanks()) {
+            FluidStack fuelStack = fluidTank.drain(Integer.MAX_VALUE, false);
+            if (fuelStack == null || ModHandler.isWater(fuelStack))
+                continue; 
+            FuelRecipe dieselRecipe = RecipeMaps.DIESEL_GENERATOR_FUELS.findRecipe(GTValues.V[9], fuelStack);
+            if (dieselRecipe != null) {
+                long recipeVoltage = FuelRecipeLogic.getTieredVoltage(dieselRecipe.getMinVoltage());
+                int voltageMultiplier = (int) Math.max(1L, recipeVoltage / GTValues.V[GTValues.LV]);
+                int burnTime = (int) Math.ceil(dieselRecipe.getDuration() * CONSUMPTION_MULTIPLIER / 2.0 * voltageMultiplier * getThrottleMultiplier());
+                int fuelAmountToConsume = (int) Math.ceil(dieselRecipe.getRecipeFluid().amount * CONSUMPTION_MULTIPLIER * boilerType.fuelConsumptionMultiplier * getThrottleMultiplier());
+                final long fuelBurnTime = (fuelStack.amount * burnTime) / fuelAmountToConsume;
+                FluidFuelInfo fluidFuelInfo = (FluidFuelInfo) fuels.get(fuelStack.getUnlocalizedName());
+                if (fluidFuelInfo == null) {
+                    fluidFuelInfo = new FluidFuelInfo(fuelStack, fuelStack.amount, fluidCapacity, fuelAmountToConsume, fuelBurnTime);
+                    fuels.put(fuelStack.getUnlocalizedName(), fluidFuelInfo);
+                }
+                else {
+                    fluidFuelInfo.addFuelRemaining(fuelStack.amount);
+                    fluidFuelInfo.addFuelBurnTime(fuelBurnTime);
+                }
+            }
+            FuelRecipe denseFuelRecipe = RecipeMaps.SEMI_FLUID_GENERATOR_FUELS.findRecipe(GTValues.V[9], fuelStack);
+            if (denseFuelRecipe != null) {
+                long recipeVoltage = FuelRecipeLogic.getTieredVoltage(denseFuelRecipe.getMinVoltage());
+                int voltageMultiplier = (int) Math.max(1L, recipeVoltage / GTValues.V[GTValues.LV]);
+                int burnTime = (int) Math.ceil(denseFuelRecipe.getDuration() * CONSUMPTION_MULTIPLIER * 2 * voltageMultiplier * getThrottleMultiplier());
+                int fuelAmountToConsume = (int) Math.ceil(denseFuelRecipe.getRecipeFluid().amount * CONSUMPTION_MULTIPLIER * boilerType.fuelConsumptionMultiplier * getThrottleMultiplier());
+                final long fuelBurnTime = (fuelStack.amount * burnTime) / fuelAmountToConsume;
+                FluidFuelInfo fluidFuelInfo = (FluidFuelInfo) fuels.get(fuelStack.getUnlocalizedName());
+                if (fluidFuelInfo == null) {
+                    fluidFuelInfo = new FluidFuelInfo(fuelStack, fuelStack.amount, fluidCapacity, fuelAmountToConsume, fuelBurnTime);
+                    fuels.put(fuelStack.getUnlocalizedName(), fluidFuelInfo);
+                }
+                else {
+                    fluidFuelInfo.addFuelRemaining(fuelStack.amount);
+                    fluidFuelInfo.addFuelBurnTime(fuelBurnTime);
+                }
+            }
+        }
+        int itemCapacity = 0; // item capacity is all slots
+        for (int slotIndex = 0; slotIndex < itemImportInventory.getSlots(); slotIndex++) {
+            itemCapacity += itemImportInventory.getSlotLimit(slotIndex);
+        }
+        for (int slotIndex = 0; slotIndex < itemImportInventory.getSlots(); slotIndex++) {
+            ItemStack itemStack = itemImportInventory.getStackInSlot(slotIndex);
+            final long burnTime = (int) Math.ceil(TileEntityFurnace.getItemBurnTime(itemStack) / (50.0 * this.boilerType.fuelConsumptionMultiplier * getThrottleMultiplier()));
+            if (burnTime > 0) {
+                ItemFuelInfo itemFuelInfo = (ItemFuelInfo) fuels.get(itemStack.getTranslationKey());
+                if (itemFuelInfo == null) {
+                    itemFuelInfo = new ItemFuelInfo(itemStack, itemStack.getCount(), itemCapacity, 1, itemStack.getCount() * burnTime);
+                    fuels.put(itemStack.getTranslationKey(), itemFuelInfo);
+                }
+                else {
+                    itemFuelInfo.addFuelRemaining(itemStack.getCount());
+                    itemFuelInfo.addFuelBurnTime(itemStack.getCount() * burnTime);
+                }
+            }
+        }
+        return fuels.values();
     }
 }

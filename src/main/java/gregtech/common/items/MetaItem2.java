@@ -12,6 +12,7 @@ import gregtech.api.unification.material.MarkerMaterials.Tier;
 import gregtech.api.unification.material.Materials;
 import gregtech.api.unification.ore.OrePrefix;
 import gregtech.api.util.RandomPotionEffect;
+import gregtech.common.ConfigHolder;
 import gregtech.common.items.behaviors.FacadeItem;
 import gregtech.common.items.behaviors.ScannerBehavior;
 import gregtech.common.items.behaviors.NanoSaberBehavior;
@@ -52,8 +53,8 @@ public class MetaItem2 extends MaterialMetaItem {
 
         BOTTLE_PURPLE_DRINK = addItem(100, "bottle.purple.drink").addComponents(new FoodStats(8, 0.2F, true, true, new ItemStack(Items.GLASS_BOTTLE), new RandomPotionEffect(MobEffects.HASTE, 800, 1, 90)));
 
-        ENERGY_CRYSTAL = addItem(212, "energy_crystal").addComponents(ElectricStats.createRechargeableBattery(1000000L, GTValues.HV)).setModelAmount(8).setMaxStackSize(1);
-        LAPOTRON_CRYSTAL = addItem(213, "lapotron_crystal").addComponents(ElectricStats.createRechargeableBattery(4000000L, GTValues.EV)).setModelAmount(8).setMaxStackSize(1);
+        ENERGY_CRYSTAL = addItem(212, "energy_crystal").addComponents(ElectricStats.createRechargeableBattery(4000000L, GTValues.HV)).setModelAmount(8).setMaxStackSize(1);
+        LAPOTRON_CRYSTAL = addItem(213, "lapotron_crystal").addComponents(ElectricStats.createRechargeableBattery(10000000L, GTValues.EV)).setModelAmount(8).setMaxStackSize(1);
 
         DYE_INDIGO = addItem(410, "dye.indigo").addOreDict("dyeBlue").setInvisible();
         for (int i = 0; i < EnumDyeColor.values().length; i++) {
@@ -69,7 +70,7 @@ public class MetaItem2 extends MaterialMetaItem {
         POWER_UNIT_HV = addItem(575, "power_unit.hv") .addComponents(ElectricStats.createElectricItem(1600000L, GTValues.HV)).setMaxStackSize(8);
         JACKHAMMER_BASE = addItem(576, "jackhammer_base").addComponents(ElectricStats.createElectricItem(1600000L, GTValues.HV)).setMaxStackSize(4);
 
-        NANO_SABER = addItem(577, "nano_saber").addComponents(ElectricStats.createElectricItem(4000000L, GTValues.HV)).addComponents(new NanoSaberBehavior(5.0f, 20.0f, 64)).setMaxStackSize(1);
+        NANO_SABER = addItem(577, "nano_saber").addComponents(ElectricStats.createElectricItem(4000000L, GTValues.HV)).addComponents(new NanoSaberBehavior()).setMaxStackSize(1);
         ENERGY_FIELD_PROJECTOR = addItem(578, "energy_field_projector").addComponents(ElectricStats.createElectricItem(16000000L, GTValues.EV)).setMaxStackSize(1);
         SCANNER = addItem(579, "scanner").addComponents(ElectricStats.createElectricItem(200_000L, GTValues.LV), new ScannerBehavior(50));
 
@@ -164,6 +165,15 @@ public class MetaItem2 extends MaterialMetaItem {
 
         TURBINE_ROTOR = addItem(508, "turbine_rotor").addComponents(new TurbineRotorBehavior());
         COVER_FACADE = addItem(509, "cover.facade").addComponents(new FacadeItem()).disableModelLoading();
+
+        FLUID_REGULATORS[0] = FLUID_REGULATOR_LV = addItem(700, "fluid.regulator.lv");
+        FLUID_REGULATORS[1] = FLUID_REGULATOR_MV = addItem(701, "fluid.regulator.mv");
+        FLUID_REGULATORS[2] = FLUID_REGULATOR_HV = addItem(702, "fluid.regulator.hv");
+        FLUID_REGULATORS[3] = FLUID_REGULATOR_EV = addItem(703, "fluid.regulator.ev");
+        FLUID_REGULATORS[4] = FLUID_REGULATOR_IV = addItem(704, "fluid.regulator.iv");
+        FLUID_REGULATORS[5] = FLUID_REGULATOR_LUV = addItem(705, "fluid.regulator.luv");
+        FLUID_REGULATORS[6] = FLUID_REGULATOR_ZPM = addItem(706, "fluid.regulator.zpm");
+        FLUID_REGULATORS[7] = FLUID_REGULATOR_UV = addItem(707, "fluid.regulator.uv");
     }
 
     public void registerRecipes() {
@@ -276,20 +286,6 @@ public class MetaItem2 extends MaterialMetaItem {
         RecipeMaps.MACERATOR_RECIPES.recipeBuilder()
             .inputs(new ItemStack(Items.MELON, 1, 0))
             .outputs(new ItemStack(Items.MELON_SEEDS, 1, 0))
-            .duration(400)
-            .EUt(2)
-            .buildAndRegister();
-
-        RecipeMaps.MACERATOR_RECIPES.recipeBuilder()
-            .inputs(new ItemStack(Items.WHEAT, 1, 0))
-            .outputs(OreDictUnifier.get(OrePrefix.dust, Materials.Wheat, 1))
-            .duration(400)
-            .EUt(2)
-            .buildAndRegister();
-
-        RecipeMaps.MACERATOR_RECIPES.recipeBuilder()
-            .inputs(new ItemStack(Items.STICK, 1))
-            .outputs(OreDictUnifier.get(OrePrefix.dustSmall, Materials.Wood, 2))
             .duration(400)
             .EUt(2)
             .buildAndRegister();
